@@ -31,9 +31,15 @@ import com.example.repository.CustomerCardApplicationRepository;
 import com.example.repository.CustomerProfileRepository;
 import com.example.util.KeyGenerator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+
 @Service
 public class CustomerService {
-
+	
+	
+	private final Logger logger = LoggerFactory.getLogger(AdminService.class);
 	private final CustomerProfileRepository customerProfileRepository;
 
 	private final CreditCardRepository creditCardRepository;
@@ -145,6 +151,7 @@ public class CustomerService {
 			addNewCard(cust.get(), old.get().getCreditCard());
 			sendEmail(cust.get().getEmail(), "Credit Card Application Status Update",
 					"Congratulations! Your credit card application has been approved.");
+			logger.info("Customer application approved and email sent to: {}", cust.get().getEmail());
 		} else {
 			throw new ResourceNotFoundException(NO_CUSTOMER_MESSAGE);
 		}
@@ -159,6 +166,7 @@ public class CustomerService {
 
 	@Transactional
 	public ResponseEntity<Object> rejectCustomerApplication(Long applicationId) throws ResourceNotFoundException {
+		logger.info("Rejecting customer application with ID: {}", applicationId);
 		Optional<CustomerCardApplication> old = customerCardApplicationRepository.findById(applicationId);
 
 		if (old.isEmpty())
@@ -174,7 +182,7 @@ public class CustomerService {
 		if (cust.isPresent()) {
 			sendEmail(cust.get().getEmail(), "Credit Card Application Status Update",
 					"Unfortunately, we are unable to verify your application for the credit card, and as a result, it has been rejected.");
-
+			logger.info("Customer application rejected and email sent to: {}", cust.get().getEmail());
 		} else {
 			throw new ResourceNotFoundException(NO_CUSTOMER_MESSAGE);
 		}
@@ -189,6 +197,8 @@ public class CustomerService {
 
 	@Transactional
 	public ResponseEntity<Object> approveCustomerUserApplication(Long applicationId) throws ResourceNotFoundException {
+	
+		logger.info("Approving customer application with ID: {}", applicationId);
 		Optional<CustomerCardApplication> old = customerCardApplicationRepository.findById(applicationId);
 		if (old.isEmpty())
 			throw new ResourceNotFoundException(CUSTOMER_MESSAGE + applicationId);
@@ -205,10 +215,12 @@ public class CustomerService {
 			customerAccount.get().setCreditCard(old.get().getCreditCard());  
 			sendEmail(cust.get().getEmail(), "Credit Card Upgradation Application Status Update",
 					"Unfortunately, we are unable to verify your application for the credit card, and as a result, it has been rejected.");
+			
+			logger.info("Customer user application approved and email sent to: {}", cust.get().getEmail());
 		} else {
 			throw new ResourceNotFoundException(NO_CUSTOMER_MESSAGE);
 		}
-
+		
 		return new ResponseEntity<>("Customer Application approved successfully", HttpStatus.OK);
 
 	}
@@ -221,7 +233,9 @@ public class CustomerService {
 		message.setTo(to);
 		message.setSubject(subject);
 		message.setText(text);
+		
 		mailSender.send(message);
+		logger.info("Email sent to: {} with subject: {}", to, subject);
 	}
 
 	// Function to add new credit card
@@ -265,6 +279,7 @@ public class CustomerService {
 		newAccount.setOnlinePaymentLimit(new BigDecimal("20000"));
 
 		customerCardAccountRepository.save(newAccount);
+		logger.info("New card added for customer: {}", newCustomer.getCustomerId());
 	}
 
 }

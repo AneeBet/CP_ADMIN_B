@@ -30,15 +30,18 @@ import com.example.repository.GuestRepository;
 import com.example.util.Hasher;
 import com.example.util.KeyGenerator;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 @Service
 public class GuestService {
-
+	private final Logger logger = LoggerFactory.getLogger(AdminService.class);
 	private final GuestRepository guestRepository;
 
 	private final CustomerProfileRepository customerProfileRepository;
 
 	private final CustomerCardAccountRepository customerCardAccountRepository;
-	
+
 	private final CreditCardRepository creditCardRepository;
 
 	@Autowired
@@ -102,6 +105,7 @@ public class GuestService {
 
 	@Transactional
 	public ResponseEntity<Object> approveGuestApplication(String email) throws ResourceNotFoundException {
+		logger.info("Approving guest application with email: {}", email);
 		Optional<GuestProfile> old = guestRepository.findById(email);
 
 		if (old.isEmpty())
@@ -110,20 +114,20 @@ public class GuestService {
 		old.get().setApplicationStatus(ApplicationStatus.APPROVED);
 
 		GuestProfile guest = guestRepository.save(old.get());
-		
+
 		String password = generator.generatePassword();
 
 		CustomerProfile newCustomer = addNewCustomer(guest, password);
 
-		int pin  = addNewCard(newCustomer, guest.getCreditCard().getCardType());
+		int pin = addNewCard(newCustomer, guest.getCreditCard().getCardType());
 
 //		guest.setApplicationStatus(ApplicationStatus.APPROVED);
 		guestRepository.save(guest);
 
 		sendEmail(old.get().getGuestEmail(), "Credit Card Application Status Update",
 				"Congratulations! Your credit card application has been approved. Please find your login credentials below: \nUSERNAME : "
-						+ newCustomer.getCustomerId() + "\n" + "PASSWORD :" + password + "\n" + "PIN :" + pin );
-
+						+ newCustomer.getCustomerId() + "\n" + "PASSWORD :" + password + "\n" + "PIN :" + pin);
+		logger.info("Guest application approved and email sent to: {}", old.get().getGuestEmail());
 		return new ResponseEntity<>("Guest Application approved successfully", HttpStatus.OK);
 	}
 
@@ -132,6 +136,7 @@ public class GuestService {
 
 	@Transactional
 	public ResponseEntity<Object> rejectGuestApplication(String email) throws ResourceNotFoundException {
+		logger.info("Rejecting guest application with email: {}", email);
 		Optional<GuestProfile> old = guestRepository.findById(email);
 
 		if (old.isEmpty())
@@ -143,7 +148,7 @@ public class GuestService {
 
 		sendEmail(guest.getGuestEmail(), "Credit Card Application Status Update",
 				"Unfortunately, we are unable to verify your application for the credit card, and as a result, it has been rejected.");
-
+		logger.info("Guest application rejected and email sent to: {}", guest.getGuestEmail());
 		return new ResponseEntity<>("Guest Application rejected successfully", HttpStatus.OK);
 
 	}
@@ -152,6 +157,7 @@ public class GuestService {
 	// -------------------------------------------------------------------
 
 	public CustomerProfile addNewCustomer(GuestProfile guest, String password) throws ResourceNotFoundException {
+
 		CustomerProfile newCustomer = new CustomerProfile();
 		newCustomer.setName(guest.getName());
 		newCustomer.setEmail(guest.getGuestEmail());
@@ -166,8 +172,9 @@ public class GuestService {
 		newCustomer.setCompanyName(guest.getCompanyName());
 		newCustomer.setAnnualIncome(guest.getAnnualIncome());
 		newCustomer.setIncomeProofFilePath(guest.getIncomeProofFilePath());
-		
+
 		newCustomer.setPassword(Hasher.hashPassword(password));
+		logger.info("New customer profile created for guest: {}", guest.getGuestEmail());
 
 		return customerProfileRepository.save(newCustomer);
 	}
@@ -187,9 +194,9 @@ public class GuestService {
 		// Add 5 years to the current date
 		calendar.add(Calendar.YEAR, 5);
 		CustomerCardAccount newAccount = new CustomerCardAccount();
-		
+
 		Optional<CreditCard> c = creditCardRepository.findById(card);
-		
+
 		newAccount.setCustomerProfile(newCustomer);
 		newAccount.setCardStatus(ActivationStatus.ACTIVE);
 		newAccount.setCardBalance(new BigDecimal("1000"));
@@ -203,18 +210,16 @@ public class GuestService {
 		newAccount.setCreditCard(card);
 		newAccount.setBaseCurrency("INR");
 		newAccount.setCardSwipeLimit(c.get().getMaxLimit());
-		newAccount.setCreditCardLimit(c.get().getMaxLimit()
-				);
+		newAccount.setCreditCardLimit(c.get().getMaxLimit());
 		newAccount.setDueAmount(new BigDecimal("1000"));
 		newAccount.setOpeningDate(now);
 		newAccount.setExpiryDate(calendar.getTime());
 		newAccount.setDueDate(now);
 		newAccount.setInternationalPaymentLimit(BigDecimal.ZERO);
 		newAccount.setOnlinePaymentLimit(new BigDecimal("20000"));
-		
+		logger.info("New card added for customer: {}", newCustomer.getCustomerId());
 		return customerCardAccountRepository.save(newAccount).getPin();
 	}
-
 
 	// Function to send email
 	// -------------------------------------------------------------------
@@ -225,6 +230,7 @@ public class GuestService {
 		message.setSubject(subject);
 		message.setText(text);
 		mailSender.send(message);
+		logger.info("Email sent to: {} with subject: {}", to, subject);
 	}
 
 }
