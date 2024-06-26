@@ -122,7 +122,7 @@ public class GuestService {
 
 		sendEmail(old.get().getGuestEmail(), "Credit Card Application Status Update",
 				"Congratulations! Your credit card application has been approved. Please find your login credentials below: \nUSERNAME : "
-						+ newCustomer.getCustomerId() + "\n" + "PASSWORD :" + "\n" + "PIN :" + pin );
+						+ newCustomer.getCustomerId() + "\n" + "PASSWORD :" + password + "\n" + "PIN :" + pin );
 
 		return new ResponseEntity<>("Guest Application approved successfully", HttpStatus.OK);
 	}
